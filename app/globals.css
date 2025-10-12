@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, :root { height: 100%; }
+body { background:#0a0a0a; color:#f3f3f3 }
+
+/* Font utilities */
+.font-medieval { font-family: var(--font-medieval), cursive; }
+.font-imfell   { font-family: var(--font-imfell), serif; }
+.font-lora     { font-family: var(--font-lora), serif; }
+
+/* Default usage */
+body {
+  font-family: var(--font-lora), serif;   /* body text = Lora */
+}
+h1, .hero {
+  font-family: var(--font-medieval), cursive;   /* hero headings */
+}
+h2, h3 {
+  font-family: var(--font-imfell), serif;       /* sub-headings */
+}
+
+body {
+  background-image: url('/images/hpbackground.png');
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* add a dark overlay */
+body::before {
+  content: "";
+  position: fixed;   /* covers the whole screen */
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); /* black with 50% opacity */
+  z-index: -1; /* keep it behind content */
+}
+
+@keyframes flicker {
+  0%, 100% { opacity: 1; text-shadow: 0 0 8px gold; }
+  50%      { opacity: 0.8; text-shadow: 0 0 16px orange; }
+}
+.flicker {
+  color: gold;
+  animation: flicker 1.5s infinite alternate;
+}
+

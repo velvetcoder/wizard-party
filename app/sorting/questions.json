@@ -1,0 +1,125 @@
+{
+  "houses": ["Gryffindor", "Ravenclaw", "Hufflepuff", "Slytherin"],
+  "questions": [
+    {
+      "id": "q1",
+      "prompt": "You’re walking down a dark corridor and hear a noise. What do you do?",
+      "options": [
+        { "id": "a", "label": "Draw your wand and investigate.", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 1} },
+        { "id": "b", "label": "Analyze the sound first and plan your next step.", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 1} },
+        { "id": "c", "label": "Find a friend or prefect and go together.", "weights": {"Gryffindor": 1, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Set a trap for whatever’s making the sound.", "weights": {"Gryffindor": 1, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q2",
+      "prompt": "Which magical study appeals to you most?",
+      "options": [
+        { "id": "a", "label": "Defense Against the Dark Arts", "weights": {"Gryffindor": 3, "Ravenclaw": 1, "Hufflepuff": 0, "Slytherin": 1} },
+        { "id": "b", "label": "Ancient Runes & Arithmancy", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 1, "Slytherin": 0} },
+        { "id": "c", "label": "Herbology & Care of Magical Creatures", "weights": {"Gryffindor": 0, "Ravenclaw": 1, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Potions & Magical Law", "weights": {"Gryffindor": 0, "Ravenclaw": 1, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q3",
+      "prompt": "A friend is being picked on. What’s your first move?",
+      "options": [
+        { "id": "a", "label": "Step in and stand up for them immediately.", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 1, "Slytherin": 0} },
+        { "id": "b", "label": "Use wit to defuse the situation.", "weights": {"Gryffindor": 1, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "c", "label": "Escort your friend away and comfort them.", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Leverage the rules so the bully gets consequences.", "weights": {"Gryffindor": 0, "Ravenclaw": 1, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q4",
+      "prompt": "Pick a magical creature companion.",
+      "options": [
+        { "id": "a", "label": "Hippogriff", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 1, "Slytherin": 0} },
+        { "id": "b", "label": "Raven", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "c", "label": "Niffler", "weights": {"Gryffindor": 0, "Ravenclaw": 1, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Serpent", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q5",
+      "prompt": "Which trait do you prize most in yourself?",
+      "options": [
+        { "id": "a", "label": "Bravery", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "b", "label": "Intelligence", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "c", "label": "Loyalty", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Ambition", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q6",
+      "prompt": "You’ve got an extra hour before curfew. What do you do?",
+      "options": [
+        { "id": "a", "label": "Sneak to the Quidditch pitch for practice.", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 1, "Slytherin": 0} },
+        { "id": "b", "label": "Study a tricky chapter in the library.", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 1, "Slytherin": 0} },
+        { "id": "c", "label": "Bake snacks in the kitchens with friends.", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Work on a scheme to win the House Cup.", "weights": {"Gryffindor": 0, "Ravenclaw": 1, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q7",
+      "prompt": "Pick a Hogwarts location.",
+      "options": [
+        { "id": "a", "label": "Gryffindor common room by the fire", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 1, "Slytherin": 0} },
+        { "id": "b", "label": "Ravenclaw tower with the night sky", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "c", "label": "Greenhouses bathed in morning light", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "The dungeons—quiet, focused, powerful", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q8",
+      "prompt": "How do you handle rules?",
+      "options": [
+        { "id": "a", "label": "Rules are guidelines—courage matters more.", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 1} },
+        { "id": "b", "label": "Understand the rules deeply to use them well.", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 1} },
+        { "id": "c", "label": "Rules keep everyone safe and included.", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Rules exist—find the loopholes to win.", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q9",
+      "prompt": "Choose a magical item.",
+      "options": [
+        { "id": "a", "label": "Sword of Gryffindor", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "b", "label": "Diadem of Ravenclaw", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "c", "label": "Hufflepuff’s Cup", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Slytherin’s Locket", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q10",
+      "prompt": "Your team is behind in House points. What’s your play?",
+      "options": [
+        { "id": "a", "label": "Rally everyone—bold move to win big.", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 1} },
+        { "id": "b", "label": "Find a clever, efficient way to score points.", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 1} },
+        { "id": "c", "label": "Volunteer for helpful tasks and chip away steadily.", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "Negotiate, strategize, and outmaneuver rivals.", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q11",
+      "prompt": "Pick a motto.",
+      "options": [
+        { "id": "a", "label": "“Dare greatly.”", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "b", "label": "“Know more.”", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "c", "label": "“Be kind.”", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "“Rise above.”", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    },
+    {
+      "id": "q12",
+      "prompt": "Which path do you choose through the Forbidden Forest?",
+      "options": [
+        { "id": "a", "label": "The narrow trail straight ahead—no fear.", "weights": {"Gryffindor": 3, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "b", "label": "The winding path—observe, learn, adapt.", "weights": {"Gryffindor": 0, "Ravenclaw": 3, "Hufflepuff": 0, "Slytherin": 0} },
+        { "id": "c", "label": "The safe route along the edge with friends.", "weights": {"Gryffindor": 0, "Ravenclaw": 0, "Hufflepuff": 3, "Slytherin": 0} },
+        { "id": "d", "label": "The hidden shortcut—risky but rewarding.", "weights": {"Gryffindor": 1, "Ravenclaw": 0, "Hufflepuff": 0, "Slytherin": 3} }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+# Ignore heavy folders
+node_modules/
+.next/
+
+# Ignore local environment configs
+.env
+.env.local
+
+# Ignore system files
+.DS_Store
+
+# Optional: output folders
+dist/
+out/
+node_modules
