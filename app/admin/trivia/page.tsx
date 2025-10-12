@@ -3,11 +3,24 @@
 import { useEffect, useState } from 'react'
 import { useSupabaseBrowser } from '@/lib/supabase/useClient'
 
-type Question = { id: number; category: string | null; question: string; answer: string; difficulty?: number | null }
+type Question = {
+  id: number
+  category: string | null
+  question: string
+  answer: string
+  difficulty?: number | null
+}
 type Session = { id: number; active: boolean; active_question_id: number | null }
-type Buzz = { id: number; display_name: string; house: string | null; created_at: string; question_id: number | null; session_id: number | null }
+type Buzz = {
+  id: number
+  display_name: string
+  house: string | null
+  created_at: string
+  question_id: number | null
+  session_id: number | null
+}
 
-const HOUSES = ['Gryffindor','Ravenclaw','Hufflepuff','Slytherin'] as const
+const HOUSES = ['Gryffindor', 'Ravenclaw', 'Hufflepuff', 'Slytherin'] as const
 type House = typeof HOUSES[number]
 
 export default function AdminTrivia() {
@@ -21,33 +34,47 @@ export default function AdminTrivia() {
   const [awardBusy, setAwardBusy] = useState(false)
   const [customDelta, setCustomDelta] = useState<number>(5)
 
-  // Load questions
+  // Load questions (minimal fields for speed)
   async function loadQuestions() {
-    const { data, error } = await supabase.from('trivia_questions').select('*').order('id')
-    if (error) setError(error.message)
-    setQuestions((data as Question[]) || [])
+    try {
+      setError(null)
+      const { data, error } = await supabase
+        .from('trivia_questions')
+        .select('id, category, question, answer')
+        .order('id', { ascending: true })
+      if (error) throw error
+      setQuestions((data as Question[]) || [])
+    } catch (e: any) {
+      setQuestions([])
+      setError(e.message || 'Failed to load questions')
+    }
   }
 
-  // Load current session
+  // Load current session (single row)
   async function loadSession() {
-    const { data, error } = await supabase
-      .from('trivia_sessions')
-      .select('*')
-      .order('updated_at', { ascending: false })
-      .limit(1)
-    if (error) setError(error.message)
-    const s = (data?.[0] as Session) || null
-    setActiveId(s?.active_question_id ?? null)
+    try {
+      const { data, error } = await supabase
+        .from('trivia_sessions')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (error) throw error
+      const s = (data as Session) || null
+      setActiveId(s?.active_question_id ?? null)
+    } catch (e: any) {
+      setError(e.message || 'Failed to load session')
+      setActiveId(null)
+    }
   }
 
-  // On mount: ensure clean slate, then load
+  // On mount: stop any lingering round, then load
   useEffect(() => {
     ;(async () => {
       try {
         await fetch('/api/admin/trivia/stop', { method: 'POST' }).catch(() => {})
       } finally {
-        await loadQuestions()
-        await loadSession()
+        await Promise.all([loadQuestions(), loadSession()])
       }
     })()
   }, []) // mount once
@@ -67,7 +94,10 @@ export default function AdminTrivia() {
   useEffect(() => {
     let stop = false
     async function fetchBuzzes() {
-      if (!activeId) { setBuzzes([]); return }
+      if (!activeId) {
+        if (!stop) setBuzzes([])
+        return
+      }
       const { data, error } = await supabase
         .from('trivia_buzzes')
         .select('*')
@@ -81,15 +111,20 @@ export default function AdminTrivia() {
     }
     fetchBuzzes()
     const id = setInterval(fetchBuzzes, 800)
-    return () => { stop = true; clearInterval(id) }
+    return () => {
+      stop = true
+      clearInterval(id)
+    }
   }, [supabase, activeId])
 
   // Actions
   const seed = async () => {
     try {
-      setLoading(true); setError(null)
+      setLoading(true)
+      setError(null)
       const res = await fetch('/api/admin/trivia/seed', { method: 'POST' })
-      if (!res.ok) throw new Error((await res.json().catch(()=>({})))?.error || 'Seed failed')
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'Seed failed')
       await loadQuestions()
     } catch (e: any) {
       setError(e.message || 'Seed failed')
@@ -100,12 +135,17 @@ export default function AdminTrivia() {
 
   const start = async (id: number) => {
     try {
-      setLoading(true); setError(null)
-      const res = await fetch('/api/admin/trivia/start', { method: 'POST',
-      headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-      if (!res.ok) throw new Error((await res.json().catch(()=>({})))?.error || 'Start failed')
-      setActiveId(id)       // optimistic
-      await loadSession()   // confirm
+      setLoading(true)
+      setError(null)
+      const res = await fetch('/api/admin/trivia/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      })
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'Start failed')
+      setActiveId(id) // optimistic
+      await loadSession() // confirm
     } catch (e: any) {
       setError(e.message || 'Start failed')
     } finally {
@@ -115,9 +155,11 @@ export default function AdminTrivia() {
 
   const stop = async () => {
     try {
-      setLoading(true); setError(null)
+      setLoading(true)
+      setError(null)
       const res = await fetch('/api/admin/trivia/stop', { method: 'POST' })
-      if (!res.ok) throw new Error((await res.json().catch(()=>({})))?.error || 'Stop failed')
+      const j = await res.json().catch(() => ({}))
+      if (!res.ok || !j?.ok) throw new Error(j?.error || 'Stop failed')
       setActiveId(null)
       setBuzzes([])
       await loadSession()
@@ -131,7 +173,8 @@ export default function AdminTrivia() {
   // ---- Award helpers ----
   async function award(house: House, delta: number, reason?: string, displayName?: string) {
     try {
-      setAwardBusy(true); setError(null)
+      setAwardBusy(true)
+      setError(null)
       const res = await fetch('/api/admin/points/award', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -139,12 +182,11 @@ export default function AdminTrivia() {
           house,
           delta,
           reason: reason || `Trivia correct answer${displayName ? ` — ${displayName}` : ''}`,
-          display_name: displayName || ''
-        })
+          display_name: displayName || '',
+        }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok || !j?.ok) throw new Error(j?.error || 'Award failed')
-      // You can ping your House page to refresh, or just show a small success note
     } catch (e: any) {
       setError(e.message || 'Award failed')
     } finally {
@@ -156,21 +198,42 @@ export default function AdminTrivia() {
   const first = buzzes[0]
   const firstHouse = (first?.house && HOUSES.includes(first.house as House)) ? (first.house as House) : null
 
+  const firstQuestionId = questions[0]?.id ?? null
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold">Admin — Trivia Control</h1>
         <div className="text-sm opacity-80">
-          {activeId ? <>Round: <span className="text-green-400 font-medium">ACTIVE</span> (Q#{activeId})</> : <>Round: inactive</>}
+          {activeId ? (
+            <>Round: <span className="text-green-400 font-medium">ACTIVE</span> (Q#{activeId})</>
+          ) : (
+            <>Round: inactive</>
+          )}
         </div>
       </div>
 
       <div className="flex gap-2 flex-wrap">
-        <button onClick={seed} disabled={loading} className="rounded bg-white/10 px-4 py-2 hover:bg-white/20 disabled:opacity-50">
+        <button
+          onClick={seed}
+          disabled={loading}
+          className="rounded bg-white/10 px-4 py-2 hover:bg-white/20 disabled:opacity-50"
+        >
           Seed Sample Questions
         </button>
-        <button onClick={stop} disabled={loading} className="rounded bg-white/10 px-4 py-2 hover:bg-white/20 disabled:opacity-50">
+        <button
+          onClick={stop}
+          disabled={loading}
+          className="rounded bg-white/10 px-4 py-2 hover:bg-white/20 disabled:opacity-50"
+        >
           Stop Round
+        </button>
+        <button
+          onClick={() => firstQuestionId && start(firstQuestionId)}
+          disabled={loading || !firstQuestionId}
+          className="rounded bg-emerald-600 px-4 py-2 hover:bg-emerald-700 disabled:opacity-50"
+        >
+          {loading ? 'Starting…' : 'Quick Start (first question)'}
         </button>
       </div>
 
@@ -183,7 +246,7 @@ export default function AdminTrivia() {
       <section className="space-y-2">
         <h2 className="text-xl font-semibold">Questions</h2>
         <ul className="space-y-2">
-          {questions.map(q => (
+          {questions.map((q) => (
             <li key={q.id} className="rounded-xl p-3 bg-white/10">
               <div className="text-xs opacity-70">{q.category || 'General'} • Q#{q.id}</div>
               <div className="font-medium">{q.question}</div>
@@ -214,14 +277,19 @@ export default function AdminTrivia() {
           <>
             <ul className="space-y-2">
               {buzzes.map((b, i) => (
-                <li key={b.id} className={`rounded-xl p-3 border ${i===0 ? 'bg-emerald-600/20 border-emerald-400/40' : 'bg-white/10 border-white/10'}`}>
+                <li
+                  key={b.id}
+                  className={`rounded-xl p-3 border ${
+                    i === 0 ? 'bg-emerald-600/20 border-emerald-400/40' : 'bg-white/10 border-white/10'
+                  }`}
+                >
                   <div className="flex items-center justify-between">
                     <span className="font-medium">{b.display_name}</span>
                     <span className="opacity-70 text-sm">{b.house || ''}</span>
                   </div>
                   <div className="text-xs opacity-70 mt-1">
                     {new Date(b.created_at).toLocaleTimeString()}
-                    {i===0 && <span className="ml-2 text-emerald-300">🟢 First buzz</span>}
+                    {i === 0 && <span className="ml-2 text-emerald-300">🟢 First buzz</span>}
                   </div>
                 </li>
               ))}
@@ -231,18 +299,21 @@ export default function AdminTrivia() {
             <div className="rounded-2xl bg-white/10 p-3 space-y-3">
               <div className="text-sm opacity-80">Award points</div>
 
-              {/* If first buzzer has a house, show one-click awards */}
               {firstHouse ? (
                 <div className="flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => award(firstHouse, 5, 'Trivia correct answer', first?.display_name || undefined)}
+                    onClick={() =>
+                      award(firstHouse, 5, 'Trivia correct answer', first?.display_name || undefined)
+                    }
                     disabled={awardBusy}
                     className="rounded bg-emerald-600 px-3 py-1 hover:bg-emerald-700 disabled:opacity-50"
                   >
                     +5 to {firstHouse}
                   </button>
                   <button
-                    onClick={() => award(firstHouse, 10, 'Trivia correct answer', first?.display_name || undefined)}
+                    onClick={() =>
+                      award(firstHouse, 10, 'Trivia correct answer', first?.display_name || undefined)
+                    }
                     disabled={awardBusy}
                     className="rounded bg-emerald-600 px-3 py-1 hover:bg-emerald-700 disabled:opacity-50"
                   >
@@ -253,11 +324,13 @@ export default function AdminTrivia() {
                     <input
                       type="number"
                       value={customDelta}
-                      onChange={(e)=>setCustomDelta(Number(e.target.value || 0))}
+                      onChange={(e) => setCustomDelta(Number(e.target.value || 0))}
                       className="w-20 rounded bg-white/10 px-2 py-1"
                     />
                     <button
-                      onClick={() => award(firstHouse, customDelta, 'Trivia custom award', first?.display_name || undefined)}
+                      onClick={() =>
+                        award(firstHouse, customDelta, 'Trivia custom award', first?.display_name || undefined)
+                      }
                       disabled={awardBusy}
                       className="rounded bg-white/10 px-3 py-1 hover:bg-white/20 disabled:opacity-50"
                     >
@@ -269,9 +342,8 @@ export default function AdminTrivia() {
                 <p className="text-sm opacity-80">First buzzer has no house — use quick house buttons below.</p>
               )}
 
-              {/* Quick house buttons (works always) */}
               <div className="flex flex-wrap items-center gap-2">
-                {HOUSES.map(h => (
+                {HOUSES.map((h) => (
                   <button
                     key={h}
                     onClick={() => award(h, 5, 'Trivia correct answer')}
