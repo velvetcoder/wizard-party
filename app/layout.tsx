@@ -14,8 +14,8 @@ const medieval = MedievalSharp({
 const imfell = IM_Fell_English({
   subsets: ['latin'],
   weight: '400',
-  style: 'normal',
   variable: '--font-imfell',
+  adjustFontFallback: false, 
 })
 
 // Body text (readable serif)

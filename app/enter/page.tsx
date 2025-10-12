@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSupabaseBrowser } from '@/lib/supabase/useClient'
 
@@ -14,11 +14,11 @@ type Checkin = {
 const ALLOWED_HOUSES = ['Gryffindor', 'Ravenclaw', 'Hufflepuff', 'Slytherin'] as const
 type House = (typeof ALLOWED_HOUSES)[number]
 
-export default function EnterPage() {
+// ✅ Wrapped in Suspense boundary
+function EnterInner() {
   const supabase = useSupabaseBrowser()
   const searchParams = useSearchParams()
 
-  // Read ?house=&name= from URL once
   const initialHouse = useMemo(() => {
     const fromUrl = searchParams.get('house') || ''
     return (ALLOWED_HOUSES as readonly string[]).includes(fromUrl) ? (fromUrl as House) : ''
@@ -26,14 +26,12 @@ export default function EnterPage() {
 
   const initialName = useMemo(() => searchParams.get('name') || '', [searchParams])
 
-  // Form state
   const [displayName, setDisplayName] = useState<string>(initialName)
   const [house, setHouse] = useState<string>(initialHouse)
   const [submitting, setSubmitting] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
-
-  // Arrivals count (polling)
   const [count, setCount] = useState<number>(0)
+
   useEffect(() => {
     let stop = false
     const refresh = async () => {
@@ -45,7 +43,6 @@ export default function EnterPage() {
     return () => { stop = true; clearInterval(id) }
   }, [supabase])
 
-  // Optional: if no ?house= is present, try localStorage (from sorting page)
   useEffect(() => {
     if (!initialHouse) {
       const saved = typeof window !== 'undefined' ? localStorage.getItem('sortedHouse') : null
@@ -64,14 +61,9 @@ export default function EnterPage() {
     try {
       setSubmitting(true)
       setMessage(null)
-      const { error } = await supabase.from('checkins').insert([
-        { display_name: displayName.trim(), house }
-      ])
+      const { error } = await supabase.from('checkins').insert([{ display_name: displayName.trim(), house }])
       if (error) throw error
       setMessage('✅ Checked in! Enjoy the party ✨')
-      setDisplayName(prev => prev) // keep name
-      // You could navigate elsewhere if you want:
-      // window.location.href = '/sorting' or '/house'
     } catch (err: any) {
       setMessage(`❌ Check-in failed: ${err.message || 'Unknown error'}`)
     } finally {
@@ -83,7 +75,9 @@ export default function EnterPage() {
     <div className="mx-auto max-w-xl p-6 space-y-6">
       <header className="text-center space-y-2">
         <h1 className="text-4xl font-medieval">Welcome — Check In</h1>
-        <p className="opacity-80">Arrivals so far: <span className="font-semibold">{count}</span></p>
+        <p className="opacity-80">
+          Arrivals so far: <span className="font-semibold">{count}</span>
+        </p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-2xl bg-white/10 p-4">
@@ -109,7 +103,6 @@ export default function EnterPage() {
               <option key={h} value={h}>{h}</option>
             ))}
           </select>
-          {/* small hint if it was prefilled */}
           {initialHouse && <p className="text-xs opacity-70 mt-1">Prefilled from Sorting result.</p>}
         </div>
 
@@ -121,9 +114,7 @@ export default function EnterPage() {
           {submitting ? 'Checking in…' : 'I have arrived'}
         </button>
 
-        {message && (
-          <div className="text-sm opacity-90">{message}</div>
-        )}
+        {message && <div className="text-sm opacity-90">{message}</div>}
       </form>
 
       <div className="text-center">
@@ -134,3 +125,14 @@ export default function EnterPage() {
     </div>
   )
 }
+
+// ✅ Export default wrapped in Suspense
+export default function EnterPage() {
+  return (
+    <Suspense fallback={<div className="text-center opacity-70 mt-10">Loading check-in...</div>}>
+      <EnterInner />
+    </Suspense>
+  )
+}
+
+export const dynamic = 'force-dynamic'
