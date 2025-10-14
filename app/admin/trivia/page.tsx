@@ -90,32 +90,91 @@ export default function AdminTrivia() {
     return () => clearTimeout(timer)
   }, [])
 
-  // Poll buzzes for the active question
-  useEffect(() => {
-    let stop = false
-    async function fetchBuzzes() {
-      if (!activeId) {
-        if (!stop) setBuzzes([])
-        return
-      }
-      const { data, error } = await supabase
-        .from('trivia_buzzes')
-        .select('*')
-        .eq('question_id', activeId)
-        .order('created_at', { ascending: true })
-        .limit(20)
-      if (!stop) {
-        if (error) setError(error.message)
-        setBuzzes((data as Buzz[]) || [])
-      }
+  // --- helpers ---
+function mergeBuzzesOldestFirst(existing: Buzz[], incoming: Buzz[]): Buzz[] {
+  const seen = new Set(existing.map(b => b.id))
+  const merged = [...existing]
+  for (const b of incoming) {
+    if (!seen.has(b.id)) {
+      merged.push(b) // append newer buzzes to the end, keeping oldest->newest
+      seen.add(b.id)
     }
-    fetchBuzzes()
-    const id = setInterval(fetchBuzzes, 800)
-    return () => {
-      stop = true
-      clearInterval(id)
+  }
+  // ensure strictly oldest -> newest (just in case timestamps tie)
+  merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+  return merged.slice(0, 100)
+}
+
+// --- realtime + fallback polling for current active question ---
+useEffect(() => {
+  let stop = false
+  let pollId: any
+
+  async function loadInitial() {
+    if (!activeId) {
+      setBuzzes([])
+      return
     }
-  }, [supabase, activeId])
+    const { data, error } = await supabase
+      .from('trivia_buzzes')
+      .select('id, display_name, house, created_at, question_id, session_id')
+      .eq('question_id', activeId)
+      .order('created_at', { ascending: true }) // oldest -> newest
+      .limit(100)
+    if (stop) return
+    if (!error) setBuzzes((data as Buzz[]) || [])
+  }
+
+  // initial load
+  loadInitial()
+
+  // subscribe to INSERTs for this question_id
+  let channel: any = null
+  if (activeId) {
+    channel = supabase
+      .channel(`buzzes_q${activeId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'trivia_buzzes',
+          filter: `question_id=eq.${activeId}`,
+        },
+        payload => {
+          const row = payload.new as Buzz
+          setBuzzes(prev => mergeBuzzesOldestFirst(prev, [row]))
+        }
+      )
+      .subscribe()
+  }
+
+  // fallback poll (every 5s) in case realtime stalls
+  const poll = async () => {
+    if (!activeId) return
+    const { data } = await supabase
+      .from('trivia_buzzes')
+      .select('id, display_name, house, created_at, question_id, session_id')
+      .eq('question_id', activeId)
+      .order('created_at', { ascending: true })
+      .limit(100)
+    if (!stop && data) {
+      setBuzzes(prev => {
+        // merge to avoid flicker / duplicates
+        return mergeBuzzesOldestFirst(prev, data as Buzz[])
+      })
+    }
+    pollId = setTimeout(poll, 5000)
+  }
+  poll()
+
+  return () => {
+    stop = true
+    if (channel) supabase.removeChannel(channel)
+    if (pollId) clearTimeout(pollId)
+  }
+}, [supabase, activeId])
+
 
   // Actions
   const seed = async () => {
