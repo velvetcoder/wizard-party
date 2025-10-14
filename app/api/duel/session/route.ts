@@ -2,45 +2,45 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@/lib/supabase/server'
 
 export async function GET() {
-  try {
-    const s = createServerClient()
-    const { data, error } = await s
-      .from('duel_session')
-      .select('*')
-      .eq('id', 1)
-      .maybeSingle()
-
-    if (error) throw error
-
-    // if no row yet, create a default inactive one:
-    if (!data) {
-      const init = { id: 1, active: false, current_spell: null, options: null, updated_at: new Date().toISOString() }
-      const { error: insErr } = await s.from('duel_session').upsert(init)
-      if (insErr) throw insErr
-      return NextResponse.json({ ok: true, data: init })
-    }
-
-    return NextResponse.json({ ok: true, data })
-  } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? 'read failed' }, { status: 500 })
-  }
+  const s = createServerClient()
+  const { data, error } = await s.from('duel_session').select('*').eq('id', 1).maybeSingle()
+  if (error) return NextResponse.json({ ok:false, error: error.message }, { status:500 })
+  return NextResponse.json({ ok:true, data })
 }
 
 export async function POST(req: Request) {
   try {
     const payload = await req.json().catch(() => ({}))
-    const active = !!payload?.active
-    const current_spell = payload?.current_spell ?? null
-    const options = Array.isArray(payload?.options) ? payload.options : null
-
     const s = createServerClient()
-    const up = { id: 1, active, current_spell, options, updated_at: new Date().toISOString() }
 
-    const { error } = await s.from('duel_session').upsert(up)
-    if (error) throw error
+    // read current row to merge
+    const { data: current } = await s
+      .from('duel_session')
+      .select('*')
+      .eq('id', 1)
+      .maybeSingle()
 
-    return NextResponse.json({ ok: true, data: up })
+    // Only replace fields that are explicitly provided.
+    // Everything else stays as-is.
+    const merged = {
+      id: 1,
+      active: (payload.active ?? current?.active) ?? false,
+      current_spell: (payload.hasOwnProperty('current_spell') ? payload.current_spell : current?.current_spell) ?? null,
+      options: (payload.hasOwnProperty('options') ? payload.options : current?.options) ?? null,
+      reveal: (payload.hasOwnProperty('reveal') ? payload.reveal : current?.reveal) ?? false,
+      winner_house: (payload.hasOwnProperty('winner_house') ? payload.winner_house : current?.winner_house) ?? null,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { error: upErr, data } = await s
+      .from('duel_session')
+      .upsert(merged, { onConflict: 'id' })
+      .select()
+      .maybeSingle()
+
+    if (upErr) throw upErr
+    return NextResponse.json({ ok:true, data })
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message ?? 'update failed' }, { status: 500 })
+    return NextResponse.json({ ok:false, error: e?.message ?? 'update failed' }, { status:500 })
   }
 }

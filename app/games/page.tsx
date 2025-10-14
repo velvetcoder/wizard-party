@@ -5,7 +5,6 @@ export default function Games() {
     { href: '/games/trivia/display', title: 'Trivia (Host Display)' },
     { href: '/games/horcrux', title: 'Horcrux Hunt' },
     { href: '/games/duel', title: 'Wizard Duel' },
-    { href: '/games/duel/display', title: 'Wizard Duel (Host Display)' },
     { href: '/games/quidditch', title: 'Quidditch Pong' },
     { href: '/games/socks', title: 'Dobby Socks?' },
   ]
