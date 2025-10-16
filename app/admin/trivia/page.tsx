@@ -29,15 +29,14 @@ export default function AdminTrivia() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [activeId, setActiveId] = useState<number | null>(null)
   const [buzzes, setBuzzes] = useState<Buzz[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false)      // action loading (seed/start/stop)
   const [error, setError] = useState<string | null>(null)
   const [awardBusy, setAwardBusy] = useState(false)
   const [customDelta, setCustomDelta] = useState<number>(5)
 
-  // Load questions (minimal fields for speed)
+  // ---------- Data loaders ----------
   async function loadQuestions() {
     try {
-      setError(null)
       const { data, error } = await supabase
         .from('trivia_questions')
         .select('id, category, question, answer')
@@ -50,7 +49,6 @@ export default function AdminTrivia() {
     }
   }
 
-  // Load current session (single row)
   async function loadSession() {
     try {
       const { data, error } = await supabase
@@ -68,18 +66,14 @@ export default function AdminTrivia() {
     }
   }
 
-  // On mount: stop any lingering round, then load
+  // ---------- Mount: just load — do NOT auto-stop ----------
   useEffect(() => {
     ;(async () => {
-      try {
-        await fetch('/api/admin/trivia/stop', { method: 'POST' }).catch(() => {})
-      } finally {
-        await Promise.all([loadQuestions(), loadSession()])
-      }
+      await Promise.all([loadQuestions(), loadSession()])
     })()
   }, []) // mount once
 
-  // Light polling for active question
+  // ---------- Keep active question synced ----------
   useEffect(() => {
     let timer: any
     async function tick() {
@@ -90,93 +84,86 @@ export default function AdminTrivia() {
     return () => clearTimeout(timer)
   }, [])
 
-  // --- helpers ---
-function mergeBuzzesOldestFirst(existing: Buzz[], incoming: Buzz[]): Buzz[] {
-  const seen = new Set(existing.map(b => b.id))
-  const merged = [...existing]
-  for (const b of incoming) {
-    if (!seen.has(b.id)) {
-      merged.push(b) // append newer buzzes to the end, keeping oldest->newest
-      seen.add(b.id)
+  // ---------- Buzz streaming for current active question ----------
+  function mergeBuzzesOldestFirst(existing: Buzz[], incoming: Buzz[]): Buzz[] {
+    const seen = new Set(existing.map(b => b.id))
+    const merged = [...existing]
+    for (const b of incoming) {
+      if (!seen.has(b.id)) {
+        merged.push(b) // append newer buzzes at end; overall oldest -> newest
+        seen.add(b.id)
+      }
     }
+    merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+    return merged.slice(0, 100)
   }
-  // ensure strictly oldest -> newest (just in case timestamps tie)
-  merged.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-  return merged.slice(0, 100)
-}
 
-// --- realtime + fallback polling for current active question ---
-useEffect(() => {
-  let stop = false
-  let pollId: any
+  useEffect(() => {
+    let stop = false
+    let pollId: any
 
-  async function loadInitial() {
-    if (!activeId) {
-      setBuzzes([])
-      return
+    async function loadInitial() {
+      if (!activeId) {
+        setBuzzes([])
+        return
+      }
+      const { data, error } = await supabase
+        .from('trivia_buzzes')
+        .select('id, display_name, house, created_at, question_id, session_id')
+        .eq('question_id', activeId)
+        .order('created_at', { ascending: true })
+        .limit(100)
+      if (stop) return
+      if (!error) setBuzzes((data as Buzz[]) || [])
     }
-    const { data, error } = await supabase
-      .from('trivia_buzzes')
-      .select('id, display_name, house, created_at, question_id, session_id')
-      .eq('question_id', activeId)
-      .order('created_at', { ascending: true }) // oldest -> newest
-      .limit(100)
-    if (stop) return
-    if (!error) setBuzzes((data as Buzz[]) || [])
-  }
 
-  // initial load
-  loadInitial()
+    loadInitial()
 
-  // subscribe to INSERTs for this question_id
-  let channel: any = null
-  if (activeId) {
-    channel = supabase
-      .channel(`buzzes_q${activeId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'trivia_buzzes',
-          filter: `question_id=eq.${activeId}`,
-        },
-        payload => {
-          const row = payload.new as Buzz
-          setBuzzes(prev => mergeBuzzesOldestFirst(prev, [row]))
-        }
-      )
-      .subscribe()
-  }
-
-  // fallback poll (every 5s) in case realtime stalls
-  const poll = async () => {
-    if (!activeId) return
-    const { data } = await supabase
-      .from('trivia_buzzes')
-      .select('id, display_name, house, created_at, question_id, session_id')
-      .eq('question_id', activeId)
-      .order('created_at', { ascending: true })
-      .limit(100)
-    if (!stop && data) {
-      setBuzzes(prev => {
-        // merge to avoid flicker / duplicates
-        return mergeBuzzesOldestFirst(prev, data as Buzz[])
-      })
+    // live INSERTs for this question
+    let channel: any = null
+    if (activeId) {
+      channel = supabase
+        .channel(`buzzes_q${activeId}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'trivia_buzzes',
+            filter: `question_id=eq.${activeId}`,
+          },
+          payload => {
+            const row = payload.new as Buzz
+            setBuzzes(prev => mergeBuzzesOldestFirst(prev, [row]))
+          }
+        )
+        .subscribe()
     }
-    pollId = setTimeout(poll, 5000)
-  }
-  poll()
 
-  return () => {
-    stop = true
-    if (channel) supabase.removeChannel(channel)
-    if (pollId) clearTimeout(pollId)
-  }
-}, [supabase, activeId])
+    // fallback poll every 5s
+    const poll = async () => {
+      if (!activeId) return
+      const { data } = await supabase
+        .from('trivia_buzzes')
+        .select('id, display_name, house, created_at, question_id, session_id')
+        .eq('question_id', activeId)
+        .order('created_at', { ascending: true })
+        .limit(100)
+      if (!stop && data) {
+        setBuzzes(prev => mergeBuzzesOldestFirst(prev, data as Buzz[]))
+      }
+      pollId = setTimeout(poll, 5000)
+    }
+    poll()
 
+    return () => {
+      stop = true
+      if (channel) supabase.removeChannel(channel)
+      if (pollId) clearTimeout(pollId)
+    }
+  }, [supabase, activeId])
 
-  // Actions
+  // ---------- Actions ----------
   const seed = async () => {
     try {
       setLoading(true)
@@ -184,7 +171,7 @@ useEffect(() => {
       const res = await fetch('/api/admin/trivia/seed', { method: 'POST' })
       const j = await res.json().catch(() => ({}))
       if (!res.ok || !j?.ok) throw new Error(j?.error || 'Seed failed')
-      await loadQuestions()
+      await loadQuestions() // once they’re in SQL, buttons are ready
     } catch (e: any) {
       setError(e.message || 'Seed failed')
     } finally {
@@ -203,8 +190,8 @@ useEffect(() => {
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok || !j?.ok) throw new Error(j?.error || 'Start failed')
-      setActiveId(id) // optimistic
-      await loadSession() // confirm
+      setActiveId(id)         // optimistic: immediately mark this one active
+      // NOTE: backend should allow switching questions while active
     } catch (e: any) {
       setError(e.message || 'Start failed')
     } finally {
@@ -221,7 +208,7 @@ useEffect(() => {
       if (!res.ok || !j?.ok) throw new Error(j?.error || 'Stop failed')
       setActiveId(null)
       setBuzzes([])
-      await loadSession()
+      await loadSession() // reflect stopped state
     } catch (e: any) {
       setError(e.message || 'Stop failed')
     } finally {
@@ -229,7 +216,7 @@ useEffect(() => {
     }
   }
 
-  // ---- Award helpers ----
+  // ---------- Award helpers ----------
   async function award(house: House, delta: number, reason?: string, displayName?: string) {
     try {
       setAwardBusy(true)
@@ -253,10 +240,9 @@ useEffect(() => {
     }
   }
 
-  // Convenience: award to first buzzer's house (if available); else choose manually
+  // Convenience
   const first = buzzes[0]
   const firstHouse = (first?.house && HOUSES.includes(first.house as House)) ? (first.house as House) : null
-
   const firstQuestionId = questions[0]?.id ?? null
 
   return (
@@ -312,8 +298,13 @@ useEffect(() => {
               <div className="opacity-70 text-sm">Answer: {q.answer}</div>
               <button
                 onClick={() => start(q.id)}
-                disabled={loading}
-                className="mt-2 rounded bg-white/10 px-3 py-1 hover:bg-white/20 disabled:opacity-50"
+                disabled={loading /* allow starting even if another is active */}
+                className={`mt-2 rounded px-3 py-1 disabled:opacity-50 ${
+                  activeId === q.id
+                    ? 'bg-emerald-700/50 cursor-not-allowed'
+                    : 'bg-white/10 hover:bg-white/20'
+                }`}
+                title={activeId === q.id ? 'This question is already active' : 'Start with this question'}
               >
                 Start with this question {activeId === q.id ? '(active)' : ''}
               </button>
